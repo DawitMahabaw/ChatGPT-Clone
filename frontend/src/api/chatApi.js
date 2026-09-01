@@ -14,3 +14,13 @@ export const sendMessage = async (question) => {
 
   return response.data;
 };
+
+
+// Get previous conversations from the backend.
+export const getConversations = async () => {
+  const response = await axios.get(
+    `${API_URL}/chat/conversations`
+  );
+
+  return response.data;
+};
