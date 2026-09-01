@@ -77,7 +77,7 @@ function App() {
       const errorMessage = {
         id: Date.now() + 1,
         role: "assistant",
-        content: "Something went wrong. Please try again.",
+        content: error.message,
       };
 
       setConversations((previousConversations) => [
