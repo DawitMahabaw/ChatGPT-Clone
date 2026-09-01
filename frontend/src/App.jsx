@@ -16,18 +16,24 @@ function App() {
   // Reference to the bottom of the message list.
   const messagesEndRef = useRef(null);
 
-  
+
   // Load previous conversations when the app starts.
   useEffect(() => {
-    const loadConversations = async () => {
-      try {
-        const conversations = await getConversations();
+  const loadConversations = async () => {
+    try {
+      // Tell the UI that conversations are loading.
+      setIsLoading(true);
 
-        setConversations(conversations);
-      } catch (error) {
-        console.error("Error loading conversations:", error);
-      }
-    };
+      const conversations = await getConversations();
+
+      setConversations(conversations);
+    } catch (error) {
+      console.error("Error loading conversations:", error);
+    } finally {
+      // Loading is finished whether the request succeeds or fails.
+      setIsLoading(false);
+    }
+  };
 
     loadConversations();
   }, []);
