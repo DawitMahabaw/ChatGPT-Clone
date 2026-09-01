@@ -1,11 +1,10 @@
+import ChatMessage from "../ChatMessage/ChatMessage";
+
 function MessageList({ conversations, isLoading, messagesEndRef }) {
   return (
     <div className="message-list">
       {conversations.map((conversation) => (
-        <div key={conversation.id}>
-          <strong>{conversation.role}:</strong>
-          <p>{conversation.content}</p>
-        </div>
+        <ChatMessage key={conversation.id} conversation={conversation} />
       ))}
 
       {isLoading && (
@@ -14,7 +13,7 @@ function MessageList({ conversations, isLoading, messagesEndRef }) {
         </div>
       )}
 
-      {/* Used to scroll to the newest message */}
+      {/* Used later to scroll to the newest message */}
       <div ref={messagesEndRef} />
     </div>
   );
