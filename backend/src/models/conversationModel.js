@@ -2,15 +2,16 @@ import dbConnection from "../config/database.js";
 
 // Get recent conversations from the database.
 export const getRecentConversations = async (limit = 5) => {
+  const safeLimit = Number.parseInt(limit, 10) || 5;
+
   const [rows] = await dbConnection.execute(
     `SELECT id, role, content, created_at
      FROM conversations
      ORDER BY id DESC
-     LIMIT ${limit}`,
+     LIMIT ${safeLimit}`,
   );
 
-  // The database returns newest first.
-  // Reverse them so the oldest message comes first.
+  // Show the oldest message first.
   return rows.reverse();
 };
 
