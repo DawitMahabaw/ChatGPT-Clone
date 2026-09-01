@@ -3,12 +3,16 @@ import express from "express";
 import chatRoutes from "./src/routes/chatRoutes.js";
 import dbConnection from "./src/config/database.js";
 
+
 const app = express();
 
 const PORT = 4000;
 
 // Allows Express to read JSON request bodies.
 app.use(express.json());
+
+// Chat routes.
+app.use("/api/chat", chatRoutes);
 
 // Test the database connection.
 const testDatabaseConnection = async () => {
@@ -25,8 +29,7 @@ const testDatabaseConnection = async () => {
 
 testDatabaseConnection();
 
-// Chat routes.
-app.use("/api/chat", chatRoutes);
+
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
