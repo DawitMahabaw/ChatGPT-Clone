@@ -17,7 +17,7 @@ function App() {
 
   // This function will eventually send the question to our backend.
   const handleSendMessage = (question) => {
-    // For now, just add the user's question to the screen.
+    // Show the user's message immediately.
     const newMessage = {
       id: Date.now(),
       role: "user",
@@ -28,6 +28,13 @@ function App() {
       ...previousConversations,
       newMessage,
     ]);
+
+    // For now, we are only simulating the AI loading state.
+    setIsLoading(true);
+
+    setTimeout(() => {
+      setIsLoading(false);
+    }, 1000);
   };
 
   return (
