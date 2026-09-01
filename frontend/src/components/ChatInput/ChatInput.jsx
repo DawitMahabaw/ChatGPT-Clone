@@ -1,40 +1,61 @@
 import { useState } from "react";
+import { Plus, Mic, ArrowUp } from "lucide-react";
 
-function ChatInput({ isLoading, onSendMessage }) {
-  // Stores whatever the user is currently typing.
-  const [message, setMessage] = useState("");
+import styles from "./ChatInput.module.css";
 
-  // Runs when the form is submitted.
+export default function ChatInput({ handleSendMessage, isLoading }) {
+  // Stores the text currently typed by the user.
+  const [input, setInput] = useState("");
+
+  // Handles submitting the chat form.
   const handleSubmit = (event) => {
     event.preventDefault();
 
-    // Don't send an empty message.
-    if (!message.trim()) {
+    // Do not send an empty message or send while loading.
+    if (!input.trim() || isLoading) {
       return;
     }
 
-    // Send the message to the parent component.
-    onSendMessage(message);
+    handleSendMessage(input.trim());
 
     // Clear the input after sending.
-    setMessage("");
+    setInput("");
   };
 
   return (
-    <form onSubmit={handleSubmit}>
-      <input
-        type="text"
-        value={message}
-        placeholder="Message ChatGPT..."
-        disabled={isLoading}
-        onChange={(event) => setMessage(event.target.value)}
-      />
+    <div className={styles.container}>
+      <form className={styles.form} onSubmit={handleSubmit}>
+        {/* Plus button */}
+        <div className={styles.icon}>
+          <Plus size={20} />
+        </div>
 
-      <button type="submit" disabled={isLoading}>
-        Send
-      </button>
-    </form>
+        {/* Chat input */}
+        <input
+          type="text"
+          className={styles.input}
+          placeholder="Ask anything"
+          value={input}
+          onChange={(event) => setInput(event.target.value)}
+          disabled={isLoading}
+        />
+
+        {/* Show send button when the user has typed something. */}
+        {input.trim() ? (
+          <button
+            type="submit"
+            className={styles.submitBtn}
+            disabled={isLoading}
+          >
+            <ArrowUp size={18} />
+          </button>
+        ) : (
+          /* Otherwise show the microphone icon. */
+          <div className={styles.icon}>
+            <Mic size={20} />
+          </div>
+        )}
+      </form>
+    </div>
   );
 }
-
-export default ChatInput;

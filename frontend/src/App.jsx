@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 import Sidebar from "./components/Sidebar/Sidebar";
 import ChatHeader from "./components/ChatHeader/ChatHeader";
@@ -6,39 +6,45 @@ import MessageList from "./components/MessageList/MessageList";
 import ChatInput from "./components/ChatInput/ChatInput";
 import { sendMessage, getConversations } from "./api/chatApi";
 
+import "./App.css";
+
 function App() {
-  // Stores all messages in the current conversation.
+  // Stores all messages displayed in the chat.
   const [conversations, setConversations] = useState([]);
 
-  // Tells the UI whether the AI is currently responding.
+  // Tells the UI when conversations or Gemini are loading.
   const [isLoading, setIsLoading] = useState(false);
 
-  // Reference to the bottom of the message list.
+  // Used to automatically scroll to the newest message.
   const messagesEndRef = useRef(null);
 
-
-  // Load previous conversations when the app starts.
+  // Load previous conversations when the application starts.
   useEffect(() => {
-  const loadConversations = async () => {
-    try {
-      // Tell the UI that conversations are loading.
-      setIsLoading(true);
+    const loadConversations = async () => {
+      try {
+        setIsLoading(true);
 
-      const conversations = await getConversations();
+        const conversations = await getConversations();
 
-      setConversations(conversations);
-    } catch (error) {
-      console.error("Error loading conversations:", error);
-    } finally {
-      // Loading is finished whether the request succeeds or fails.
-      setIsLoading(false);
-    }
-  };
+        setConversations(conversations);
+      } catch (error) {
+        console.error("Error loading conversations:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
     loadConversations();
   }, []);
 
-  // This function will eventually send the question to our backend.
+  // Scroll to the newest message whenever the conversation changes.
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({
+      behavior: "smooth",
+    });
+  }, [conversations, isLoading]);
+
+  // Send the user's question to the backend.
   const handleSendMessage = async (question) => {
     // Show the user's message immediately.
     const userMessage = {
@@ -53,19 +59,21 @@ function App() {
     ]);
 
     try {
-      // Show the loading state while waiting for the backend.
+      // Show the loading animation while waiting for Gemini.
       setIsLoading(true);
 
       // Send the question to our backend.
       const response = await sendMessage(question);
 
-      // Add the AI response to the conversation.
+      // The backend returns the assistant's message
+      // using assistantConversationId and answer.
       const assistantMessage = {
         id: response.assistantConversationId,
         role: "assistant",
         content: response.answer,
       };
 
+      // Add Gemini's response to the conversation.
       setConversations((previousConversations) => [
         ...previousConversations,
         assistantMessage,
@@ -85,25 +93,32 @@ function App() {
         errorMessage,
       ]);
     } finally {
-      // Stop the loading state whether the request succeeds or fails.
+      // Stop the loading animation.
       setIsLoading(false);
     }
   };
 
   return (
     <div className="app">
+      {/* Left sidebar */}
       <Sidebar />
 
       <main className="chat">
+        {/* Top chat header */}
         <ChatHeader />
 
+        {/* Conversation messages */}
         <MessageList
           conversations={conversations}
           isLoading={isLoading}
           messagesEndRef={messagesEndRef}
         />
 
-        <ChatInput isLoading={isLoading} onSendMessage={handleSendMessage} />
+        {/* Message input */}
+        <ChatInput
+          handleSendMessage={handleSendMessage}
+          isLoading={isLoading}
+        />
       </main>
     </div>
   );
