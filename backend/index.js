@@ -1,12 +1,13 @@
 import "dotenv/config";
 import express from "express";
+import cors from "cors";
 import chatRoutes from "./src/routes/chatRoutes.js";
 import dbConnection from "./src/config/database.js";
 
-
 const app = express();
 
-const PORT = 4000;
+// Allow the frontend to communicate with the backend.
+app.use(cors());
 
 // Allows Express to read JSON request bodies.
 app.use(express.json());
@@ -27,10 +28,8 @@ const testDatabaseConnection = async () => {
   }
 };
 
+// Test the database when the application starts.
 testDatabaseConnection();
 
-
-
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-});
+// Export the Express application for Vercel.
+export default app;
