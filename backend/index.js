@@ -31,5 +31,9 @@ const testDatabaseConnection = async () => {
 // Test the database when the application starts.
 testDatabaseConnection();
 
-// Export the Express application for Vercel.
-export default app;
+// Start the server on Render's assigned port.
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`Server is running on port ${PORT}`);
+});
