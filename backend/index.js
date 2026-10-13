@@ -12,6 +12,10 @@ app.use(cors());
 // Allows Express to read JSON request bodies.
 app.use(express.json());
 
+app.get("/", (req, res) => {
+  res.send("ChatGPT Clone API is running!");
+});
+
 // Chat routes.
 app.use("/api/chat", chatRoutes);
 
