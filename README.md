@@ -347,6 +347,15 @@ NODE_ENV=development
 
 ### Frontend (.env)
 
+Create `frontend/.env` from the example file:
+
+```powershell
+Copy-Item frontend/.env.example frontend/.env
+```
+
+Set `VITE_API_URL` to the backend API URL, then restart the frontend dev server
+after changing it. The URL should include `/api`.
+
 ```
 VITE_API_URL=http://localhost:5000/api
 ```

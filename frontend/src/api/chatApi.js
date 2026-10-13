@@ -4,8 +4,8 @@ import axios from "axios";
 // All API requests start with /api.
 // const API_URL = "/api";
 
-// Deployed backend API URL.
-const API_URL = "https://ethiomovieclone-backend.vercel.app/api";
+const API_URL =
+  import.meta.env.VITE_API_URL || "https://chatgpt-clone-71v0.onrender.com";
 
 // Send the user's question to the backend.
 export const sendMessage = async (question) => {
