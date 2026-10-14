@@ -3,6 +3,7 @@ import express from "express";
 import cors from "cors";
 import chatRoutes from "./src/routes/chatRoutes.js";
 import dbConnection from "./src/config/database.js";
+import { initializeDatabase } from "./src/config/initializeDatabase.js";
 
 const app = express();
 
@@ -19,25 +20,32 @@ app.get("/", (req, res) => {
 // Chat routes.
 app.use("/api/chat", chatRoutes);
 
-// Test the database connection.
-const testDatabaseConnection = async () => {
+// Initialize the database before accepting requests.
+const startServer = async () => {
   try {
-    const connection = await dbConnection.getConnection();
+    await initializeDatabase();
+    console.log("MySQL database connected and schema initialized");
 
-    console.log("MySQL database connected successfully");
-
-    connection.release();
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`Server is running on port ${PORT}`);
+    });
   } catch (error) {
-    console.error("MySQL database connection failed:", error.message);
+    console.error(
+      "Backend startup failed; database initialization did not complete:",
+      error.message,
+    );
+
+    try {
+      await dbConnection.end();
+    } catch (closeError) {
+      console.error("Failed to close the MySQL connection pool:", closeError.message);
+    }
+
+    process.exitCode = 1;
   }
 };
-
-// Test the database when the application starts.
-testDatabaseConnection();
 
 // Start the server on Render's assigned port.
 const PORT = process.env.PORT || 3000;
 
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(`Server is running on port ${PORT}`);
-});
+await startServer();

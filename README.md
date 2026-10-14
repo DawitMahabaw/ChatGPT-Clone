@@ -195,17 +195,22 @@ ChatGPT_Clone_With_MVC/
 
    ```
    DB_HOST=your_database_host
+   DB_PORT=3306
    DB_USER=your_database_user
    DB_PASSWORD=your_database_password
    DB_NAME=your_database_name
+   DB_SSL=true
    GEMINI_API_KEY=your_gemini_api_key
    PORT=5000
    ```
 
-4. **Setup database**
+4. **Create the database**
    ```bash
-   mysql -u root -p < db/schema.sql
+   mysql -u root -p -e "CREATE DATABASE chatgpt_clone"
    ```
+   On startup, the backend creates the `conversations` table if it is missing.
+   Existing tables are left intact; incompatible `conversations` schemas stop
+   startup with an error and must be corrected manually.
 
 ### Frontend Setup
 
@@ -274,42 +279,26 @@ npm run preview
 
 ### Chat Endpoints
 
-- **POST** `/api/chat/send`
-  - Send a message and get AI response
+- **GET** `/api/chat/`
+  - Check that the chat API is running.
+
+- **GET** `/api/chat/conversations`
+  - Return the five most recent saved messages, ordered oldest to newest.
+
+- **POST** `/api/chat/conversations`
+  - Save a user question and its Gemini response.
   - Request body:
     ```json
     {
-      "message": "Your question here",
-      "conversationId": "optional_conversation_id"
+      "question": "Your question here"
     }
     ```
   - Response:
     ```json
     {
-      "success": true,
-      "data": {
-        "conversationId": "...",
-        "userMessage": "...",
-        "aiResponse": "...",
-        "timestamp": "..."
-      }
-    }
-    ```
-
-- **GET** `/api/chat/history/:conversationId`
-  - Retrieve conversation history
-  - Response:
-    ```json
-    {
-      "success": true,
-      "data": [
-        {
-          "id": "...",
-          "message": "...",
-          "response": "...",
-          "timestamp": "..."
-        }
-      ]
+      "userConversationId": 1,
+      "assistantConversationId": 2,
+      "answer": "..."
     }
     ```
 
@@ -321,13 +310,17 @@ npm run preview
 
 ```sql
 CREATE TABLE conversations (
-  id VARCHAR(36) PRIMARY KEY,
-  user_message TEXT NOT NULL,
-  ai_response TEXT NOT NULL,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-);
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  role ENUM('user', 'assistant') NOT NULL,
+  content TEXT NOT NULL,
+  token_count INT UNSIGNED NOT NULL DEFAULT 0,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4;
 ```
+
+The application currently uses only `conversations`. It does not read or write
+the `sessions` table. Existing extra columns, indexes, and records are not
+modified by startup initialization.
 
 ---
 
@@ -337,13 +330,53 @@ CREATE TABLE conversations (
 
 ```
 DB_HOST=localhost
+DB_PORT=3306
 DB_USER=root
 DB_PASSWORD=your_password
 DB_NAME=chatgpt_clone
-GEMINI_API_KEY=your_api_key
+DB_SSL=false
+GEMINI_API_KEY=your_gemini_api_key
 PORT=5000
 NODE_ENV=development
 ```
+
+### Render Backend Deployment
+
+Set the backend root directory to `backend`, use `npm install` as the build
+command, and `npm start` as the start command. Configure these environment
+variables in Render:
+
+```text
+DB_HOST=<Aiven MySQL host>
+DB_PORT=<Aiven MySQL port>
+DB_USER=<Aiven MySQL user>
+DB_PASSWORD=<Aiven MySQL password>
+DB_NAME=defaultdb
+DB_SSL=true
+DB_SSL_CA=<full PEM CA certificate contents from Aiven>
+GEMINI_API_KEY=<your Gemini API key>
+```
+
+In Aiven, open your MySQL service's **Overview** (or connection information),
+find the **CA certificate** section, and copy the complete PEM certificate:
+include the `-----BEGIN CERTIFICATE-----` and `-----END CERTIFICATE-----`
+lines and all lines between them. To use a file locally, save it as
+`backend/certs/ca.pem`; this is the default location read for remote database
+connections. Alternatively, set `DB_SSL_CA_PATH` to the certificate file's
+path.
+
+To provide the certificate on Render, either include `backend/certs/ca.pem` in
+the deployed backend, paste the PEM contents into the Render environment
+variable `DB_SSL_CA`, or add it as a Render Secret File and set
+`DB_SSL_CA_PATH` to its mounted path. A path on your development computer is
+not available to Render.
+
+The backend verifies both the certificate chain and server hostname. It refuses
+remote connections if SSL is disabled or a valid CA certificate is missing;
+`rejectUnauthorized` is never disabled.
+
+Render supplies `PORT` automatically. The service listens only after the
+database connection and table initialization succeed.
 
 ### Frontend (.env)
 
