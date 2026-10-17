@@ -1,52 +1,35 @@
 import dbConnection from "../config/database.js";
 
 /**
- * Get all chat sessions belonging to a specific user (or guest sessions).
+ * Get the saved chat sessions for one authenticated user.
+ *
+ * Sessions are deliberately never shared with guests or other accounts.
  */
-export const getUserSessions = async (userId = null) => {
-  let query;
-  let params;
+export const getUserSessions = async (userId) => {
+  const [rows] = await dbConnection.execute(
+    `SELECT id, user_id, title, model, created_at, updated_at
+     FROM sessions
+     WHERE user_id = ?
+     ORDER BY updated_at DESC, created_at DESC`,
+    [userId],
+  );
 
-  if (userId) {
-    query = `
-      SELECT id, user_id, title, model, created_at, updated_at
-      FROM sessions
-      WHERE user_id = ?
-      ORDER BY updated_at DESC, created_at DESC
-    `;
-    params = [userId];
-  } else {
-    query = `
-      SELECT id, user_id, title, model, created_at, updated_at
-      FROM sessions
-      WHERE user_id IS NULL
-      ORDER BY updated_at DESC, created_at DESC
-      LIMIT 20
-    `;
-    params = [];
-  }
-
-  const [rows] = await dbConnection.execute(query, params);
   return rows;
 };
 
 /**
- * Get a specific session by ID.
+ * Get one session only when it belongs to the requesting user.
  */
-export const getSessionById = async (sessionId, userId = null) => {
-  let query = `
+export const getSessionById = async (sessionId, userId) => {
+  const [rows] = await dbConnection.execute(
+    `
     SELECT id, user_id, title, model, created_at, updated_at
     FROM sessions
-    WHERE id = ?
-  `;
-  const params = [sessionId];
+    WHERE id = ? AND user_id = ?
+    LIMIT 1`,
+    [sessionId, userId],
+  );
 
-  if (userId) {
-    query += " AND (user_id = ? OR user_id IS NULL)";
-    params.push(userId);
-  }
-
-  const [rows] = await dbConnection.execute(query, params);
   return rows[0] || null;
 };
 
@@ -55,7 +38,7 @@ export const getSessionById = async (sessionId, userId = null) => {
  */
 export const createSession = async ({
   id,
-  userId = null,
+  userId,
   title = "New chat",
   model = "gemini-3.5-flash-lite",
 }) => {
@@ -71,57 +54,69 @@ export const createSession = async ({
 /**
  * Update the title of an existing chat session (Rename feature).
  */
-export const updateSessionTitle = async (sessionId, title, userId = null) => {
-  let query = `
+export const updateSessionTitle = async (sessionId, title, userId) => {
+  const [result] = await dbConnection.execute(
+    `
     UPDATE sessions
     SET title = ?, updated_at = CURRENT_TIMESTAMP
-    WHERE id = ?
-  `;
-  const params = [title.trim(), sessionId];
+    WHERE id = ? AND user_id = ?`,
+    [title.trim(), sessionId, userId],
+  );
 
-  if (userId) {
-    query += " AND (user_id = ? OR user_id IS NULL)";
-    params.push(userId);
-  }
-
-  const [result] = await dbConnection.execute(query, params);
   return result.affectedRows > 0;
 };
 
 /**
  * Update the session's timestamp to now when a new message is added.
  */
-export const touchSession = async (sessionId) => {
+export const touchSession = async (sessionId, userId) => {
   await dbConnection.execute(
     `UPDATE sessions
      SET updated_at = CURRENT_TIMESTAMP
-     WHERE id = ?`,
-    [sessionId],
+     WHERE id = ? AND user_id = ?`,
+    [sessionId, userId],
   );
 };
 
 /**
  * Delete a chat session and all messages linked to it.
  */
-export const deleteSession = async (sessionId, userId = null) => {
-  let query = "DELETE FROM sessions WHERE id = ?";
-  const params = [sessionId];
+export const deleteSession = async (sessionId, userId) => {
+  const connection = await dbConnection.getConnection();
 
-  if (userId) {
-    query += " AND (user_id = ? OR user_id IS NULL)";
-    params.push(userId);
-  }
+  try {
+    await connection.beginTransaction();
 
-  const [result] = await dbConnection.execute(query, params);
+    const [sessions] = await connection.execute(
+      "SELECT id FROM sessions WHERE id = ? AND user_id = ? FOR UPDATE",
+      [sessionId, userId],
+    );
 
-  if (result.affectedRows > 0) {
-    // Also delete messages associated with this session
-    await dbConnection.execute(
+    if (sessions.length === 0) {
+      await connection.rollback();
+      return false;
+    }
+
+    await connection.execute(
       "DELETE FROM conversations WHERE session_id = ?",
       [sessionId],
     );
-    return true;
-  }
 
-  return false;
+    const [result] = await connection.execute(
+      "DELETE FROM sessions WHERE id = ? AND user_id = ?",
+      [sessionId, userId],
+    );
+
+    if (result.affectedRows === 0) {
+      throw new Error("Session ownership changed while deleting the chat.");
+    }
+
+    await connection.commit();
+    return true;
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
 };
