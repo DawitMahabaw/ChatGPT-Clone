@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import Sidebar from "./components/Sidebar/Sidebar";
 import ChatHeader from "./components/ChatHeader/ChatHeader";
 import MessageList from "./components/MessageList/MessageList";
@@ -16,7 +16,11 @@ import {
 import "./App.css";
 
 function App() {
-  const { user, isAuthenticated } = useAuth();
+  const {
+    user,
+    isAuthenticated,
+    isLoading: isAuthLoading,
+  } = useAuth();
 
   // List of all saved chat sessions for the active user
   const [sessions, setSessions] = useState([]);
@@ -36,34 +40,56 @@ function App() {
   // Used to automatically scroll to newest message
   const messagesEndRef = useRef(null);
 
-  // Load user sessions from backend
-  const loadSessions = useCallback(async (selectRecent = false) => {
-    try {
-      const data = await getChatSessions();
-      setSessions(data);
-
-      // If requested and we have sessions and none is selected, load the first one
-      if (selectRecent && data && data.length > 0) {
-        const first = data[0];
-        setActiveSessionId(first.id);
-        setActiveTitle(first.title);
-        const thread = await getSessionMessages(first.id);
-        setConversations(thread.messages || []);
-      }
-    } catch (error) {
-      console.warn("Could not load sessions:", error.message);
-    }
-  }, []);
-
-  // Reload sessions whenever auth state changes (login / logout)
+  // A chat list is account-specific. Clear the old view before loading the
+  // newly authenticated account so a previous user's titles never linger.
   useEffect(() => {
-    loadSessions(true);
+    if (isAuthLoading) return undefined;
+
+    let isCurrent = true;
+
+    setSessions([]);
+    setActiveSessionId(null);
+    setActiveTitle("");
+    setConversations([]);
+
     if (!isAuthenticated) {
-      setActiveSessionId(null);
-      setActiveTitle("");
-      setConversations([]);
+      return () => {
+        isCurrent = false;
+      };
     }
-  }, [isAuthenticated, user, loadSessions]);
+
+    const loadCurrentUsersChats = async () => {
+      try {
+        const data = await getChatSessions();
+        if (!isCurrent) return;
+
+        setSessions(data);
+
+        // Open the most recently updated chat for this account, if one exists.
+        if (data.length === 0) return;
+
+        const mostRecent = data[0];
+        setActiveSessionId(mostRecent.id);
+        setActiveTitle(mostRecent.title);
+
+        const thread = await getSessionMessages(mostRecent.id);
+        if (isCurrent) {
+          setConversations(thread.messages || []);
+        }
+      } catch (error) {
+        if (isCurrent) {
+          console.warn("Could not load saved chats:", error.message);
+          setSessions([]);
+        }
+      }
+    };
+
+    loadCurrentUsersChats();
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [isAuthLoading, isAuthenticated, user?.id]);
 
   // Scroll to bottom when conversation or loading state changes
   useEffect(() => {
@@ -74,7 +100,7 @@ function App() {
 
   // Select an existing chat session to continue the conversation
   const handleSelectSession = async (sessionId) => {
-    if (sessionId === activeSessionId) return;
+    if (!isAuthenticated || sessionId === activeSessionId) return;
 
     try {
       setIsLoading(true);
@@ -99,6 +125,8 @@ function App() {
 
   // Rename a saved chat session
   const handleRenameSession = async (sessionId, newTitle) => {
+    if (!isAuthenticated) return;
+
     try {
       await renameChatSession(sessionId, newTitle);
 
@@ -118,6 +146,8 @@ function App() {
 
   // Delete a saved chat session
   const handleDeleteSession = async (sessionId) => {
+    if (!isAuthenticated) return;
+
     try {
       await deleteChatSession(sessionId);
 
@@ -135,6 +165,13 @@ function App() {
 
   // Send the user's message and handle continuing / creating the chat
   const handleSendMessage = async (question) => {
+    // Guest context lives only in this React state. It is supplied to the
+    // assistant for continuity but never written to the database.
+    const guestHistory = conversations.slice(-8).map(({ role, content }) => ({
+      role,
+      content,
+    }));
+
     // Show the user's message immediately
     const userMessage = {
       id: Date.now(),
@@ -148,18 +185,27 @@ function App() {
       setIsLoading(true);
 
       // Send to backend, passing activeSessionId so it continues the chat thread
-      const response = await sendMessage(question, activeSessionId);
+      const response = await sendMessage(
+        question,
+        isAuthenticated ? activeSessionId : null,
+        guestHistory,
+      );
 
       const assistantMessage = {
-        id: response.assistantConversationId,
+        id: response.assistantConversationId || `guest-${Date.now()}`,
         role: "assistant",
         content: response.answer,
       };
 
       setConversations((prev) => [...prev, assistantMessage]);
 
-      // If this was a new chat or title changed, update active state & sessions list
-      if (!activeSessionId || activeSessionId !== response.sessionId) {
+      // Only authenticated responses receive a server-side session and appear
+      // in the sidebar. Guest chats remain available only in this open tab.
+      if (!response.saved) {
+        setActiveSessionId(null);
+        setActiveTitle("Guest chat");
+      } else if (!activeSessionId || activeSessionId !== response.sessionId) {
+        // If this was a new chat or title changed, update active state & sessions list
         setActiveSessionId(response.sessionId);
         setActiveTitle(response.sessionTitle);
 
