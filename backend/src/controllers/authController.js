@@ -14,11 +14,21 @@ export const signup = async (req, res) => {
     const { username, email, password } = req.body;
 
     // Validate inputs
-    if (!username || !username.trim()) {
-      return res.status(400).json({ error: "Username is required." });
+    if (
+      typeof username !== "string" ||
+      !username.trim() ||
+      username.trim().length > 100
+    ) {
+      return res.status(400).json({
+        error: "Username must be between 1 and 100 characters.",
+      });
     }
 
-    if (!email || !email.trim()) {
+    if (
+      typeof email !== "string" ||
+      !email.trim() ||
+      email.trim().length > 255
+    ) {
       return res.status(400).json({ error: "Email is required." });
     }
 
@@ -28,9 +38,13 @@ export const signup = async (req, res) => {
       return res.status(400).json({ error: "Please enter a valid email address." });
     }
 
-    if (!password || password.length < 6) {
+    if (
+      typeof password !== "string" ||
+      password.length < 6 ||
+      password.length > 128
+    ) {
       return res.status(400).json({
-        error: "Password must be at least 6 characters long.",
+        error: "Password must be between 6 and 128 characters long.",
       });
     }
 
@@ -69,6 +83,13 @@ export const signup = async (req, res) => {
     });
   } catch (error) {
     console.error("Signup error:", error.message);
+
+    if (error.code === "ER_DUP_ENTRY") {
+      return res.status(409).json({
+        error: "An account with this email already exists.",
+      });
+    }
+
     return res.status(500).json({
       error: "Failed to create account. Please try again.",
     });
@@ -82,7 +103,12 @@ export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    if (!email || !email.trim() || !password) {
+    if (
+      typeof email !== "string" ||
+      !email.trim() ||
+      typeof password !== "string" ||
+      !password
+    ) {
       return res.status(400).json({
         error: "Email and password are required.",
       });
