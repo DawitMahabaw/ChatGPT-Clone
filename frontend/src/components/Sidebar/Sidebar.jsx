@@ -110,31 +110,35 @@ export default function Sidebar({
           <span>New chat</span>
         </button>
 
-        {/* Search chats */}
-        <div className={styles.searchContainer}>
-          <Search size={15} className={styles.searchIcon} />
-          <input
-            type="text"
-            className={styles.searchInput}
-            placeholder="Search chats..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-          {searchQuery && (
-            <button
-              className={styles.clearSearchBtn}
-              onClick={() => setSearchQuery("")}
-              type="button"
-            >
-              <X size={13} />
-            </button>
-          )}
-        </div>
+        {/* Search applies only to the signed-in user's private history. */}
+        {isAuthenticated && (
+          <div className={styles.searchContainer}>
+            <Search size={15} className={styles.searchIcon} />
+            <input
+              type="text"
+              className={styles.searchInput}
+              placeholder="Search chats..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            {searchQuery && (
+              <button
+                className={styles.clearSearchBtn}
+                onClick={() => setSearchQuery("")}
+                type="button"
+              >
+                <X size={13} />
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Saved Conversations List */}
       <div className={styles.historySection}>
-        <div className={styles.sectionHeader}>YOUR CHATS</div>
+        <div className={styles.sectionHeader}>
+          {isAuthenticated ? "YOUR CHATS" : "CHAT HISTORY"}
+        </div>
 
         <div className={styles.conversationsList}>
           {filteredSessions.map((session) => {
@@ -236,7 +240,9 @@ export default function Sidebar({
             <div className={styles.emptyNotice}>
               {searchQuery
                 ? "No matching chats found."
-                : "No saved chats yet. Start a new chat!"}
+                : isAuthenticated
+                  ? "No saved chats yet. Start a new chat!"
+                  : "Log in or sign up to save chats to your account."}
             </div>
           )}
         </div>
