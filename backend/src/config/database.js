@@ -7,7 +7,7 @@ const localHosts = new Set(["localhost", "127.0.0.1", "::1"]);
 const defaultCaCertificatePath = fileURLToPath(
   new URL("../../certs/ca.pem", import.meta.url),
 );
-const databaseHost = process.env.DB_HOST?.toLowerCase();
+const databaseHost = process.env.DB_HOST?.trim().toLowerCase();
 const isLocalHost = localHosts.has(databaseHost);
 const sslSetting = process.env.DB_SSL?.trim().toLowerCase() || undefined;
 const caCertificate = process.env.DB_SSL_CA?.trim();

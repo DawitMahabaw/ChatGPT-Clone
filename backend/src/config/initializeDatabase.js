@@ -1,14 +1,40 @@
 import dbConnection from "./database.js";
 
+const CREATE_USERS_TABLE = `
+  CREATE TABLE IF NOT EXISTS users (
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    username VARCHAR(100) NOT NULL,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id)
+  ) ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+`;
+
+const CREATE_SESSIONS_TABLE = `
+  CREATE TABLE IF NOT EXISTS sessions (
+    id VARCHAR(64) NOT NULL,
+    user_id INT UNSIGNED NULL,
+    title VARCHAR(255) NOT NULL DEFAULT 'New chat',
+    model VARCHAR(64) NOT NULL DEFAULT 'gemini-3.5-flash-lite',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    INDEX idx_user (user_id)
+  ) ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+`;
+
 const CREATE_CONVERSATIONS_TABLE = `
   CREATE TABLE IF NOT EXISTS conversations (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    session_id VARCHAR(64) NOT NULL DEFAULT 'default',
     role ENUM('user', 'assistant') NOT NULL,
     content TEXT NOT NULL,
     token_count INT UNSIGNED NOT NULL DEFAULT 0,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (id)
-  ) ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4
+    PRIMARY KEY (id),
+    INDEX idx_session (session_id)
+  ) ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 `;
 
 const isNotNull = (column) => column.IS_NULLABLE === "NO";
@@ -54,11 +80,11 @@ const validateConversationsTable = ({ columns, table, primaryKeyColumns }) => {
   const content = byName.get("content");
   if (
     !content ||
-    content.DATA_TYPE.toLowerCase() !== "text" ||
+    !["text", "mediumtext", "longtext"].includes(content.DATA_TYPE.toLowerCase()) ||
     !isNotNull(content) ||
-    content.CHARACTER_SET_NAME?.toLowerCase() !== "utf8mb4"
+    !content.CHARACTER_SET_NAME?.toLowerCase().startsWith("utf8")
   ) {
-    issues.push("content must be a NOT NULL utf8mb4 TEXT column");
+    issues.push("content must be a NOT NULL utf8/utf8mb4 TEXT column");
   }
 
   const tokenCount = byName.get("token_count");
@@ -88,9 +114,9 @@ const validateConversationsTable = ({ columns, table, primaryKeyColumns }) => {
   if (
     !table ||
     table.ENGINE?.toLowerCase() !== "innodb" ||
-    !table.TABLE_COLLATION?.toLowerCase().startsWith("utf8mb4_")
+    !table.TABLE_COLLATION?.toLowerCase().startsWith("utf8")
   ) {
-    issues.push("the table must use the InnoDB engine and a utf8mb4 collation");
+    issues.push("the table must use the InnoDB engine and a utf8/utf8mb4 collation");
   }
 
   if (issues.length > 0) {
@@ -108,7 +134,46 @@ const initializeDatabaseOnce = async () => {
   const connection = await dbConnection.getConnection();
 
   try {
+    // 1. Initialize users table
+    await connection.query(CREATE_USERS_TABLE);
+
+    // 2. Initialize sessions table
+    await connection.query(CREATE_SESSIONS_TABLE);
+
+    // Ensure user_id column exists on sessions table
+    const [sessionCols] = await connection.query(
+      `SELECT COLUMN_NAME
+       FROM information_schema.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE()
+         AND TABLE_NAME = 'sessions'
+         AND COLUMN_NAME = 'user_id'`,
+    );
+    if (sessionCols.length === 0) {
+      await connection.query(
+        `ALTER TABLE sessions
+         ADD COLUMN user_id INT UNSIGNED NULL AFTER id,
+         ADD INDEX idx_user (user_id)`,
+      );
+    }
+
+    // 3. Initialize conversations table
     await connection.query(CREATE_CONVERSATIONS_TABLE);
+
+    // Ensure session_id column exists on conversations table
+    const [convCols] = await connection.query(
+      `SELECT COLUMN_NAME
+       FROM information_schema.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE()
+         AND TABLE_NAME = 'conversations'
+         AND COLUMN_NAME = 'session_id'`,
+    );
+    if (convCols.length === 0) {
+      await connection.query(
+        `ALTER TABLE conversations
+         ADD COLUMN session_id VARCHAR(64) NOT NULL DEFAULT 'default' AFTER id,
+         ADD INDEX idx_session (session_id)`,
+      );
+    }
 
     const [columns] = await connection.query(
       `SELECT COLUMN_NAME, DATA_TYPE, COLUMN_TYPE, CHARACTER_SET_NAME,

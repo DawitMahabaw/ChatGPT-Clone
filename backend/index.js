@@ -1,6 +1,7 @@
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
+import authRoutes from "./src/routes/authRoutes.js";
 import chatRoutes from "./src/routes/chatRoutes.js";
 import dbConnection from "./src/config/database.js";
 import { initializeDatabase } from "./src/config/initializeDatabase.js";
@@ -16,6 +17,9 @@ app.use(express.json());
 app.get("/", (req, res) => {
   res.send("ChatGPT Clone API is running!");
 });
+
+// Authentication routes.
+app.use("/api/auth", authRoutes);
 
 // Chat routes.
 app.use("/api/chat", chatRoutes);
