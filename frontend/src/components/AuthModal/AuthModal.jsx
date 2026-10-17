@@ -1,5 +1,15 @@
 import { useState } from "react";
-import { X, Sparkles, AlertCircle, Loader2, User, Mail, Lock } from "lucide-react";
+import {
+  X,
+  Sparkles,
+  AlertCircle,
+  Loader2,
+  User,
+  Mail,
+  Lock,
+  Eye,
+  EyeOff,
+} from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import styles from "./AuthModal.module.css";
 
@@ -16,6 +26,7 @@ export default function AuthModal() {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -52,6 +63,7 @@ export default function AuthModal() {
       setUsername("");
       setEmail("");
       setPassword("");
+      setIsPasswordVisible(false);
     } catch (err) {
       setError(err.message || "Authentication failed. Please try again.");
     } finally {
@@ -62,6 +74,7 @@ export default function AuthModal() {
   const switchMode = (mode) => {
     setAuthModalMode(mode);
     setError("");
+    setIsPasswordVisible(false);
   };
 
   return (
@@ -174,14 +187,25 @@ export default function AuthModal() {
               <Lock size={18} className={styles.inputIcon} />
               <input
                 id="auth-password"
-                type="password"
+                type={isPasswordVisible ? "text" : "password"}
                 placeholder={isLogin ? "••••••••" : "At least 6 characters"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className={styles.input}
+                className={`${styles.input} ${styles.passwordInput}`}
                 required
                 disabled={isSubmitting}
               />
+              <button
+                type="button"
+                className={styles.passwordToggle}
+                onClick={() => setIsPasswordVisible((visible) => !visible)}
+                aria-label={isPasswordVisible ? "Hide password" : "Show password"}
+                aria-pressed={isPasswordVisible}
+                title={isPasswordVisible ? "Hide password" : "Show password"}
+                disabled={isSubmitting}
+              >
+                {isPasswordVisible ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
             </div>
           </div>
 
