@@ -1,40 +1,113 @@
-// The api folder contains code responsible for communicating with our backend.
-import axios from "axios";
+import apiClient from "./apiClient";
 
-// All API requests use the backend's /api prefix.
-const API_URL =
-  import.meta.env.VITE_API_URL ||
-  "https://chatgpt-clone-71v0.onrender.com";
-
-// Send the user's question to the backend.
-export const sendMessage = async (question) => {
+/**
+ * Retrieve all chat sessions for the active user.
+ */
+export const getChatSessions = async () => {
   try {
-    const response = await axios.post(
-      `${API_URL}/api/chat/conversations`,
-      { question },
+    const response = await apiClient.get("/api/chat/sessions");
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching sessions:", error);
+    throw new Error(
+      error.response?.data?.error || "Unable to load chat sessions.",
     );
+  }
+};
 
+/**
+ * Explicitly create a new blank chat session.
+ */
+export const createNewChatSession = async (title = "New chat") => {
+  try {
+    const response = await apiClient.post("/api/chat/sessions", { title });
+    return response.data;
+  } catch (error) {
+    console.error("Error creating session:", error);
+    throw new Error(
+      error.response?.data?.error || "Unable to create new chat session.",
+    );
+  }
+};
+
+/**
+ * Retrieve messages for a specific chat session thread.
+ */
+export const getSessionMessages = async (sessionId) => {
+  try {
+    const response = await apiClient.get(`/api/chat/sessions/${sessionId}`);
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching session messages:", error);
+    throw new Error(
+      error.response?.data?.error || "Unable to load messages for this chat.",
+    );
+  }
+};
+
+/**
+ * Rename a chat session title.
+ */
+export const renameChatSession = async (sessionId, title) => {
+  try {
+    const response = await apiClient.put(`/api/chat/sessions/${sessionId}`, {
+      title,
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error renaming chat session:", error);
+    throw new Error(
+      error.response?.data?.error || "Unable to rename chat session.",
+    );
+  }
+};
+
+/**
+ * Delete a chat session.
+ */
+export const deleteChatSession = async (sessionId) => {
+  try {
+    const response = await apiClient.delete(`/api/chat/sessions/${sessionId}`);
+    return response.data;
+  } catch (error) {
+    console.error("Error deleting chat session:", error);
+    throw new Error(
+      error.response?.data?.error || "Unable to delete chat session.",
+    );
+  }
+};
+
+/**
+ * Send the user's question to the backend.
+ * Optionally includes sessionId to continue an existing chat thread.
+ */
+export const sendMessage = async (question, sessionId = null) => {
+  try {
+    const response = await apiClient.post("/api/chat/conversations", {
+      question,
+      sessionId,
+    });
     return response.data;
   } catch (error) {
     console.error("API error:", error.message);
-
     throw new Error(
       error.response?.data?.error || "Unable to communicate with the server.",
     );
   }
 };
 
-// Get previous conversations from the backend.
-export const getConversations = async () => {
+/**
+ * Get recent conversations (legacy/backward compatibility).
+ */
+export const getConversations = async (sessionId = null) => {
   try {
-    const response = await axios.get(
-      `${API_URL}/api/chat/conversations`,
-    );
-
+    const url = sessionId
+      ? `/api/chat/conversations?sessionId=${sessionId}`
+      : "/api/chat/conversations";
+    const response = await apiClient.get(url);
     return response.data;
   } catch (error) {
     console.error("API error:", error.message);
-
     throw new Error(
       error.response?.data?.error || "Unable to load conversations.",
     );
