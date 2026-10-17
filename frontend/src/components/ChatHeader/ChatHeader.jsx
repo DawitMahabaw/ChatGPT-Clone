@@ -1,4 +1,4 @@
-import { ChevronDown, Sparkles, LogIn, UserPlus } from "lucide-react";
+import { LogIn, UserPlus } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import styles from "./ChatHeader.module.css";
 
@@ -7,16 +7,11 @@ export default function ChatHeader({ activeTitle }) {
 
   return (
     <header className={styles.header}>
-      {/* Chat Title / Model indicator */}
+      {/* Chat title */}
       <div className={styles.left}>
         <span className={styles.brandTitle}>
           {activeTitle ? activeTitle : "ChatGPT"}
         </span>
-        <div className={styles.modelTag}>
-          <Sparkles size={13} className={styles.sparkleIcon} />
-          <span>Gemini 3.5</span>
-          <ChevronDown size={14} />
-        </div>
       </div>
 
       {/* User profile or Auth buttons */}
