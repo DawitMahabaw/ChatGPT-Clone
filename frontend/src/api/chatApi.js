@@ -78,14 +78,19 @@ export const deleteChatSession = async (sessionId) => {
 };
 
 /**
- * Send the user's question to the backend.
- * Optionally includes sessionId to continue an existing chat thread.
+ * Send the user's question to the backend. A session ID is sent only for a
+ * saved, authenticated chat. Guest history stays in the browser.
  */
-export const sendMessage = async (question, sessionId = null) => {
+export const sendMessage = async (
+  question,
+  sessionId = null,
+  history = [],
+) => {
   try {
     const response = await apiClient.post("/api/chat/conversations", {
       question,
       sessionId,
+      history,
     });
     return response.data;
   } catch (error) {
