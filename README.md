@@ -201,6 +201,7 @@ ChatGPT_Clone_With_MVC/
    DB_NAME=your_database_name
    DB_SSL=true
    GEMINI_API_KEY=your_gemini_api_key
+   JWT_SECRET=replace_with_a_long_unique_random_secret
    PORT=5000
    ```
 
@@ -227,9 +228,9 @@ ChatGPT_Clone_With_MVC/
    ```
 
 3. **Configure API endpoint**
-   Update `src/api/chatApi.js` with your backend URL:
-   ```javascript
-   const API_BASE_URL = "http://localhost:5000/api"; // or your deployment URL
+   Set the backend URL in `frontend/.env`:
+   ```env
+   VITE_API_URL=http://localhost:5000
    ```
 
 ---
@@ -277,20 +278,44 @@ npm run preview
 
 ## 📡 API Endpoints
 
+### Authentication Endpoints
+
+- **POST** `/api/auth/signup`
+  - Creates an account, hashes the password, and returns a seven-day JWT.
+
+- **POST** `/api/auth/login`
+  - Verifies an existing account and returns a JWT.
+
+- **GET** `/api/auth/me`
+  - Returns the current user. Requires `Authorization: Bearer <token>`.
+
 ### Chat Endpoints
 
 - **GET** `/api/chat/`
   - Check that the chat API is running.
 
 - **GET** `/api/chat/conversations`
-  - Return the five most recent saved messages, ordered oldest to newest.
+  - Returns messages from one owned chat. Requires `sessionId` and
+    `Authorization: Bearer <token>`.
+
+- **GET** `/api/chat/sessions`
+  - Returns only the current user's saved chats. Requires a JWT.
+
+- **GET** `/api/chat/sessions/:id`
+  - Returns one saved chat only when it belongs to the current user.
+
+- **PUT** `/api/chat/sessions/:id` and **DELETE** `/api/chat/sessions/:id`
+  - Rename or delete one owned chat. Both require a JWT.
 
 - **POST** `/api/chat/conversations`
-  - Save a user question and its Gemini response.
+  - Sends a question to Gemini. With a valid JWT, it saves the question and
+    answer in a chat owned by that account. Without a JWT, it answers but does
+    not write a chat or message to the database.
   - Request body:
     ```json
     {
-      "question": "Your question here"
+      "question": "Your question here",
+      "sessionId": "chat_optional_existing_id"
     }
     ```
   - Response:
@@ -298,7 +323,9 @@ npm run preview
     {
       "userConversationId": 1,
       "assistantConversationId": 2,
-      "answer": "..."
+      "answer": "...",
+      "sessionId": "chat_...",
+      "saved": true
     }
     ```
 
@@ -306,11 +333,12 @@ npm run preview
 
 ## 🗄️ Database Schema
 
-### Conversations Table
+### Users, Sessions, and Conversations
 
 ```sql
 CREATE TABLE conversations (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  session_id VARCHAR(64) NOT NULL,
   role ENUM('user', 'assistant') NOT NULL,
   content TEXT NOT NULL,
   token_count INT UNSIGNED NOT NULL DEFAULT 0,
@@ -318,9 +346,9 @@ CREATE TABLE conversations (
 ) ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4;
 ```
 
-The application currently uses only `conversations`. It does not read or write
-the `sessions` table. Existing extra columns, indexes, and records are not
-modified by startup initialization.
+Each saved session has a `user_id`, and every history query checks that ID
+against the authenticated JWT. Guest chats are intentionally not persisted.
+Existing database rows are preserved during startup.
 
 ---
 
@@ -336,6 +364,7 @@ DB_PASSWORD=your_password
 DB_NAME=chatgpt_clone
 DB_SSL=false
 GEMINI_API_KEY=your_gemini_api_key
+JWT_SECRET=replace_with_a_long_unique_random_secret
 PORT=5000
 NODE_ENV=development
 ```
@@ -355,6 +384,7 @@ DB_NAME=defaultdb
 DB_SSL=true
 DB_SSL_CA=<full PEM CA certificate contents from Aiven>
 GEMINI_API_KEY=<your Gemini API key>
+JWT_SECRET=<a long, unique random secret>
 ```
 
 In Aiven, open your MySQL service's **Overview** (or connection information),
