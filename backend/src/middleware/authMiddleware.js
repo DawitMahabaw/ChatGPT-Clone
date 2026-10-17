@@ -1,6 +1,12 @@
 import jwt from "jsonwebtoken";
 
-const JWT_SECRET = process.env.JWT_SECRET || "chatgpt_jwt_secret_key_2026";
+if (!process.env.JWT_SECRET && process.env.NODE_ENV === "production") {
+  throw new Error("JWT_SECRET must be set when running in production.");
+}
+
+// A local fallback keeps first-time development simple. Production always
+// requires a private secret so accounts cannot be impersonated with a known key.
+const JWT_SECRET = process.env.JWT_SECRET || "local-development-secret";
 
 /**
  * Middleware that requires a valid JWT Bearer token.
@@ -27,8 +33,9 @@ export const authenticateToken = (req, res, next) => {
 };
 
 /**
- * Optional authentication: If a token is provided, verify and attach user.
- * If not provided, continue as guest (req.user = null).
+ * Optional authentication for the public, non-persistent chat endpoint. A guest
+ * may omit the token, but a supplied invalid token is still rejected instead of
+ * silently treating that browser as a different guest.
  */
 export const optionalAuthenticateToken = (req, res, next) => {
   const authHeader = req.headers["authorization"];
@@ -43,7 +50,9 @@ export const optionalAuthenticateToken = (req, res, next) => {
     const decoded = jwt.verify(token, JWT_SECRET);
     req.user = decoded;
   } catch {
-    req.user = null;
+    return res.status(401).json({
+      error: "Invalid or expired authentication token.",
+    });
   }
 
   next();
