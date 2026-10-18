@@ -170,9 +170,25 @@ const initializeDatabaseOnce = async () => {
     if (convCols.length === 0) {
       await connection.query(
         `ALTER TABLE conversations
-         ADD COLUMN session_id VARCHAR(64) NOT NULL DEFAULT 'default' AFTER id,
+         ADD COLUMN session_id VARCHAR(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'default' AFTER id,
          ADD INDEX idx_session (session_id)`,
       );
+    }
+
+    // 4. Ensure all tables and columns use the exact same collation (utf8mb4_unicode_ci)
+    // to prevent "Illegal mix of collations" during JOINs
+    const tablesToNormalize = ["users", "sessions", "conversations"];
+    for (const tableName of tablesToNormalize) {
+      try {
+        await connection.query(
+          `ALTER TABLE \`${tableName}\` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`,
+        );
+      } catch (collateError) {
+        console.warn(
+          `Collation normalization note for table "${tableName}":`,
+          collateError.message,
+        );
+      }
     }
 
     const [columns] = await connection.query(

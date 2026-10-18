@@ -95,6 +95,7 @@ const dbConnection = mysql.createPool({
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
+  charset: "utf8mb4",
 
   // Remote databases use verified TLS; localhost stays plaintext by default.
   ...(sslOptions && { ssl: sslOptions }),
