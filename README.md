@@ -1,8 +1,8 @@
-﻿# AI-Powered ChatGPT Clone
+# AI-Powered ChatGPT Clone
 
 A full-stack conversational AI web application built with **React**, **Node.js**, **Express**, **MySQL**, and the **Google Gemini API**. Developed as a capstone project for the **AI-Powered Full-Stack Application Development** program at **Evangadi Networks**.
 
-The application provides an interactive ChatGPT-style conversational assistant featuring multi-turn context memory, secure JWT authentication, multi-thread session management, and persistent database storage.
+The application provides an interactive ChatGPT-style conversational assistant featuring multi-turn context memory, JWT-based authentication and authorization, multi-thread session management, and persistent database storage.
 
 ---
 
@@ -18,6 +18,8 @@ The application provides an interactive ChatGPT-style conversational assistant f
 - [Environment Variables](#environment-variables)
 - [Installation & Local Setup](#installation--local-setup)
 - [Deployment](#deployment)
+- [Testing](#testing)
+- [Known Limitations](#known-limitations)
 - [Evaluation & Learning Outcomes](#evaluation--learning-outcomes)
 - [Author & Acknowledgments](#author--acknowledgments)
 
@@ -25,15 +27,15 @@ The application provides an interactive ChatGPT-style conversational assistant f
 
 ## Project Overview
 
-This application demonstrates modern full-stack development and AI integration following industry-standard **Model-View-Controller (MVC)** architectural patterns:
+This application demonstrates full-stack development and AI integration following **Model-View-Controller (MVC)** architectural patterns:
 
-1. **AI Integration**: Connects to Google Gemini (`@google/genai`) to deliver contextual, streaming-ready conversational AI responses.
+1. **AI Integration**: Connects to Google Gemini (`@google/genai`) to generate contextual conversational AI responses.
 2. **Session & History Management**: Organizes chats into dedicated conversation threads that users can create, rename, search, and delete.
-3. **Secure Authentication**: Implements user registration and login with salt-hashed passwords via `bcryptjs` and stateless authorization via JSON Web Tokens (`jsonwebtoken`).
+3. **JWT-Based Authentication & Authorization**: Implements user registration and login with salt-hashed passwords via `bcryptjs` and stateless authorization via JSON Web Tokens (`jsonwebtoken`).
 4. **Dual User Flow (Guest vs. Authenticated)**:
    - **Guest Mode**: Visitors can immediately test and chat with temporary, in-memory context.
    - **Authenticated Mode**: Registered users receive persistent database storage across devices and sessions.
-5. **Production-Ready Relational Database**: Features connection pooling, automatic schema creation on startup, uniform collation (`utf8mb4_unicode_ci`), and verified TLS/SSL support for cloud-hosted MySQL (Aiven).
+5. **Persistent Relational Database**: Features connection pooling, automatic schema initialization on startup, uniform collation (`utf8mb4_unicode_ci`), and TLS/SSL support for cloud-hosted MySQL (such as Aiven).
 
 ---
 
@@ -83,7 +85,7 @@ The application follows a decoupled client-server architecture with clear separa
 ### Backend (Server)
 - **Runtime:** Node.js (ES Modules)
 - **Framework:** Express.js
-- **Database Driver:** `mysql2/promise` (connection pooling with verified TLS/SSL support)
+- **Database Driver:** `mysql2/promise` (connection pooling with TLS/SSL support)
 - **Authentication:** `jsonwebtoken` (JWT) & `bcryptjs` (salt-hashed passwords)
 - **AI SDK:** `@google/genai` (Google Gemini models)
 - **Security:** CORS, `dotenv`, and SSL/TLS certificate validation
@@ -98,29 +100,29 @@ The application follows a decoupled client-server architecture with clear separa
 ## Key Features
 
 ### 1. Conversational AI with Context Memory
-- Generates intelligent, real-time responses using Google Gemini models.
+- Generates responses using Google Gemini models.
 - Maintains multi-turn conversation context so the model understands follow-up questions within the active session.
-- Automatically handles formatted responses, markdown, and code blocks.
+- Handles formatted responses, markdown, and code blocks.
 
 ### 2. User Authentication & Authorization
 - User registration and login validation.
-- Secure password hashing using `bcryptjs`.
+- Password hashing using `bcryptjs`.
 - Stateless authorization using JSON Web Tokens (JWT) protecting user chat sessions.
 
 ### 3. Session & Chat History Management
 - **Multi-Session Sidebar**: Create multiple distinct chat sessions.
 - **Automatic Titling**: Automatically generates conversation titles based on the user's initial prompt.
-- **Rename & Delete**: Users can rename sessions or delete threads with cascading relational cleanup.
+- **Rename & Delete**: Users can rename sessions or delete threads with cascading relational cleanup and a ChatGPT-style confirmation modal.
 - **Conversation Search**: Filter past conversation titles in real time.
 
 ### 4. Dual User Experience (Guest & Authenticated)
-- **Guest Access**: Immediate, zero-friction AI interaction without registration.
+- **Guest Access**: Immediate AI interaction without registration.
 - **Authenticated Access**: Full history persistence, session synchronization, and account management.
 
 ### 5. Automated Database Initialization
 - Automatically verifies and initializes `users`, `sessions`, and `conversations` tables at server startup.
-- Enforces strict foreign key constraints (`ON DELETE CASCADE`) to maintain relational integrity.
-- Standardizes `utf8mb4_unicode_ci` collation to ensure consistent multi-lingual character handling.
+- Enforces foreign key constraints (`ON DELETE CASCADE`) to maintain relational integrity.
+- Standardizes `utf8mb4_unicode_ci` collation to ensure consistent character handling.
 
 ---
 
@@ -142,7 +144,7 @@ ChatGPT-Clone/
 │   │   │   └── authMiddleware.js      # JWT extraction & route protection
 │   │   ├── models/
 │   │   │   ├── userModel.js           # User table queries
-│   │   │   ├── sessionModel.js        # Chat session queries
+│   │   │   └── sessionModel.js        # Chat session queries
 │   │   │   └── conversationModel.js   # Message history queries
 │   │   ├── routes/
 │   │   │   ├── authRoutes.js          # /api/auth endpoints
@@ -183,42 +185,26 @@ ChatGPT-Clone/
 
 ## Database Schema
 
-The database uses three relational tables configured with `InnoDB` and `utf8mb4_unicode_ci`:
+The database uses three relational tables configured with the `InnoDB` storage engine and `utf8mb4_unicode_ci` character set:
 
-```sql
--- 1. Users Table
-CREATE TABLE IF NOT EXISTS users (
-  id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-  username VARCHAR(100) NOT NULL,
-  email VARCHAR(255) NOT NULL UNIQUE,
-  password VARCHAR(255) NOT NULL,
-  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+### Overview of Tables
 
--- 2. Sessions Table (Conversation Threads)
-CREATE TABLE IF NOT EXISTS sessions (
-  id VARCHAR(64) NOT NULL PRIMARY KEY,
-  user_id INT UNSIGNED NOT NULL,
-  title VARCHAR(255) NOT NULL DEFAULT 'New chat',
-  model VARCHAR(64) NOT NULL DEFAULT 'gemini-2.5-flash',
-  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  INDEX idx_user (user_id),
-  CONSTRAINT fk_sessions_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+- **`users`** — Stores registered user accounts and authentication data (username, unique email address, hashed password, and account creation timestamp).
+- **`sessions`** — Represents individual chat threads belonging to users (unique session ID, reference to the owner in `users`, conversation title, AI model name, and timestamps).
+- **`conversations`** — Stores user and assistant messages within each session (message content, role indicator `user` or `assistant`, reference to the parent `sessions` record, token count, and creation timestamp).
 
--- 3. Conversations Table (Message Records)
-CREATE TABLE IF NOT EXISTS conversations (
-  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-  session_id VARCHAR(64) NOT NULL,
-  role ENUM('user', 'assistant') NOT NULL,
-  content TEXT NOT NULL,
-  token_count INT UNSIGNED NOT NULL DEFAULT 0,
-  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  INDEX idx_session (session_id),
-  CONSTRAINT fk_conversations_session FOREIGN KEY (session_id) REFERENCES sessions (id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+### Entity Relationships
+
+```text
+[ users ]
+   │
+   └── (1 : N) ──► [ sessions ]
+                      │
+                      └── (1 : N) ──► [ conversations ]
 ```
+
+- **One User to Many Sessions (`1 : N`)**: A registered user can create and maintain multiple independent conversation threads. If a user is deleted, all of their sessions are automatically removed via cascading delete (`ON DELETE CASCADE`).
+- **One Session to Many Conversations (`1 : N`)**: Each session contains an ordered sequence of user prompts and AI responses. If a session is deleted, all associated message records in the `conversations` table are automatically cleaned up via foreign key cascade.
 
 ---
 
@@ -259,7 +245,7 @@ CREATE TABLE IF NOT EXISTS conversations (
 | `DB_PASSWORD` | Yes | MySQL database password | `your_password` |
 | `DB_NAME` | Yes | Database schema name | `chatgpt_clone` |
 | `DB_SSL` | No | Enable SSL for remote MySQL connections | `true` |
-| `DB_SSL_CA` | No | Raw CA certificate PEM string (recommended for Render) | `-----BEGIN CERTIFICATE-----...` |
+| `DB_SSL_CA` | No | Raw CA certificate PEM string (for cloud deployments like Render) | `-----BEGIN CERTIFICATE-----...` |
 | `DB_SSL_CA_PATH` | No | Local filesystem path to CA certificate | `certs/ca.pem` |
 | `JWT_SECRET` | Yes | Secret key used to sign and verify JWT tokens | `64-character-hex-string` |
 | `GEMINI_API_KEY` | Yes | Google Gemini API key from Google AI Studio | `AIzaSy...` |
@@ -350,14 +336,41 @@ npm run dev
 
 ---
 
+## Testing
+
+This project currently utilizes manual verification and frontend build validation rather than an automated test suite:
+
+- **Frontend Build Validation**: The client application is verified using Vite (`npm run build`) to confirm successful compilation, JSX parsing, module resolution, and CSS bundle generation without errors.
+- **Manual API Verification**: Core authentication routes (`signup`, `login`, `me`) and chat endpoints (`conversations`, `sessions`) were verified using REST clients (such as Postman) and browser network inspection tools to confirm accurate HTTP status codes and JSON response payloads.
+- **Functional End-to-End Testing**: Key user flows were verified in the browser:
+  - Guest messaging with conversational memory within the active view.
+  - Account registration and login token persistence.
+  - Session creation, automatic titling from user prompts, session selection, and thread switching.
+  - In-place session renaming and session deletion with confirmation modal dialogs.
+- **Database Relationship & Constraint Verification**: Verified that cascading deletes (`ON DELETE CASCADE`) operate as intended when a chat session is deleted, ensuring no orphaned conversation records remain in MySQL.
+
+---
+
+## Known Limitations
+
+This project is developed as an educational capstone to demonstrate full-stack architecture and AI integration fundamentals. As such, it has several known limitations:
+
+- **Ephemeral Guest Chats**: Conversations conducted in guest mode are stored in client-side component state only. They are not persisted to the database and will not be retained if the browser page is refreshed.
+- **Gemini API Dependency**: The availability, latency, and throughput of AI responses are directly dependent on the Google Gemini API service and its assigned tier quotas.
+- **No Request Rate Limiting**: The backend does not currently enforce rate limiting or request throttling on the chat submission endpoint.
+- **AI Accuracy**: Like all large language model applications, responses generated by Gemini may occasionally contain inaccuracies, incomplete details, or hallucinations.
+- **Educational Scope**: This project is built for educational demonstration and portfolio evaluation. It is not designed or intended to be presented as a high-concurrency, production-scale replacement for commercial ChatGPT services.
+
+---
+
 ## Evaluation & Learning Outcomes
 
 This capstone project demonstrates key competencies in the **Evangadi AI-Powered Full-Stack Application Development** curriculum:
 
 - **End-to-End Full-Stack Architecture**: Designing and coordinating a decoupled React SPA frontend and an Express REST API backend.
 - **AI Model Integration**: Implementing Google Gemini API communication, context array formatting, and response handling.
-- **Relational Data Modeling & Security**: Creating normalized MySQL schemas with foreign key cascades, password hashing with salt rounds, and token-based route guards.
-- **Production Resilience**: Managing cloud database SSL certificates, handling database collation alignment, and graceful UI error states.
+- **Relational Data Modeling**: Creating normalized MySQL schemas with foreign key cascades, password hashing with salt rounds, and token-based route guards.
+- **Cloud Deployment & Database Configuration**: Managing cloud database SSL certificates, handling database collation alignment, and handling UI error states.
 - **Clean Code & Organization**: Strict adherence to the MVC pattern, modular CSS, and structured Git workflows.
 
 ---
