@@ -1,475 +1,362 @@
-# ChatGPT Clone - Full Stack Application
+# AI-Powered ChatGPT Clone
 
-A comprehensive full-stack AI-powered chatbot application built with modern web technologies. This project demonstrates the complete architecture of a production-ready chat application using React, Node.js/Express, MySQL, and Google Gemini API.
+A full-stack conversational AI application built with **React**, **Node.js/Express**, **MySQL**, and the **Google Gemini API**. Developed as a capstone project for the **AI-Powered Fullstack Application Development** program at **Evangadi Networks**.
 
-## 📋 Table of Contents
+The application replicates the core experience of ChatGPT, featuring interactive AI conversations with context memory, user authentication, multi-thread session management, and persistent chat history.
+
+---
+
+## Table of Contents
 
 - [Project Overview](#project-overview)
-- [Architecture](#architecture)
-- [Technologies](#technologies)
-- [Features](#features)
-- [Project Structure](#project-structure)
-- [Installation & Setup](#installation--setup)
-- [Running the Application](#running-the-application)
-- [API Endpoints](#api-endpoints)
+- [Architecture & Design](#architecture--design)
+- [Tech Stack](#tech-stack)
+- [Key Features](#key-features)
+- [Project Directory Structure](#project-directory-structure)
 - [Database Schema](#database-schema)
+- [API Endpoints](#api-endpoints)
 - [Environment Variables](#environment-variables)
+- [Installation & Local Setup](#installation--local-setup)
 - [Deployment](#deployment)
-- [Learning Outcomes](#learning-outcomes)
+- [Evaluation & Learning Outcomes](#evaluation--learning-outcomes)
 
 ---
 
-## 🎯 Project Overview
+## Project Overview
 
-This full-stack application allows users to interact with an AI-powered chatbot through an intuitive chat interface. Users can send messages, receive intelligent responses powered by Google Gemini API, and maintain conversation history stored in a MySQL database.
+This project implements an end-to-end AI chat application following industry-standard **Model-View-Controller (MVC)** architectural patterns. It demonstrates:
 
-The project demonstrates:
-
-- **Full-stack development** - from frontend UI to backend API and database
-- **MVC architecture** - clean separation of concerns
-- **REST API design** - proper HTTP methods and status codes
-- **Database management** - conversation persistence
-- **External API integration** - Google Gemini API
-- **Modern frontend practices** - React with Vite
+1. **AI Integration**: Integrating Google Gemini (`@google/genai`) to generate contextual, multi-turn AI responses.
+2. **Session & History Management**: Organizing messages into dedicated chat sessions that users can create, rename, revisit, and delete.
+3. **Secure Authentication**: Password encryption via `bcryptjs` and stateless session authorization via `jsonwebtoken` (JWT).
+4. **Guest & Authenticated Flows**: Guests can immediately chat with lightweight in-memory context; registered users receive persistent database storage.
+5. **Production Database Engineering**: Automated schema synchronization, collation alignment (`utf8mb4_unicode_ci`), and SSL/TLS verification for remote cloud databases (Aiven / Render).
 
 ---
 
-## 🏗️ Architecture
+## Architecture & Design
 
-### Data Flow
+The application follows a decoupled client-server architecture with clean separation of concerns:
 
 ```
-User Interface (React)
-        │
-        │ HTTP Request
-        ▼
-    API Routes
-        │
-        ▼
-   Controllers (MVC)
-        │
-        ▼
-   Services Layer
-        │
-        ├──────────────► Google Gemini API (AI Responses)
-        │
-        ▼
-    Models (Database)
-        │
-        ▼
-   MySQL Database
-        │
-        ▼
-   Backend Response
-        │
-        ▼
-   User Interface (React)
+[ User Browser / Client ]
+           │
+           │  HTTP / JSON (REST)
+           ▼
+[ React 18 + Vite Frontend ]
+    ├── Components (Chat, Sidebar, Auth Modal)
+    ├── AuthContext (Global Auth State)
+    └── API Client (Axios + JWT Interceptors)
+           │
+           │  REST Requests with Bearer Token
+           ▼
+[ Express.js Backend (MVC Architecture) ]
+    ├── Routes:       /api/auth & /api/chat
+    ├── Middleware:   JWT verification & error handlers
+    ├── Controllers:  authController & chatController
+    ├── Services:     geminiService (Google Gemini API)
+    └── Models:       userModel, sessionModel, conversationModel
+           │
+           ├──► [ Google Gemini AI API ] (Contextual generation)
+           │
+           └──► [ MySQL Database (Local / Aiven Cloud) ]
+                 ├── users
+                 ├── sessions
+                 └── conversations
 ```
 
-### MVC Pattern
+---
 
-- **Models**: Database layer (`conversationModel.js`)
-- **Views**: React components (ChatHeader, ChatInput, ChatMessage, etc.)
-- **Controllers**: Business logic (`chatController.js`)
-- **Services**: AI integration and helper functions (`geminiService.js`)
+## Tech Stack
+
+### Frontend
+- **Framework:** React 18
+- **Build Tool:** Vite
+- **HTTP Client:** Axios (configured with automated JWT authorization headers)
+- **Styling:** CSS Modules & Vanilla CSS (scoped component styles and responsive layouts)
+- **Icons:** Lucide React
+
+### Backend
+- **Runtime:** Node.js (ES Modules)
+- **Framework:** Express.js
+- **Database Driver:** `mysql2/promise` (connection pooling with verified TLS/SSL support)
+- **Authentication:** `jsonwebtoken` (JWT) & `bcryptjs`
+- **AI SDK:** `@google/genai` (Google Gemini models)
+- **Security & Config:** CORS, `dotenv`, SSL X.509 certificate validation
+
+### Infrastructure & Hosting
+- **Backend:** Render (Web Service)
+- **Database:** Aiven for MySQL (Cloud-managed database with TLS/SSL encryption)
+- **Frontend:** Vercel
 
 ---
 
-## 🛠️ Technologies
+## Key Features
 
-### Frontend Stack
+### 1. Conversational AI with Context Memory
+- Real-time responses generated via the Google Gemini API.
+- Multi-turn conversation awareness: previous context is supplied to the AI model so responses remain coherent across follow-up questions.
+- Formatted markdown and clean code block rendering.
 
-- **React** - UI framework
-- **Vite** - Fast build tool and development server
-- **Axios** - HTTP client for API requests
-- **CSS Modules** - Component-scoped styling
+### 2. User Authentication & Authorization
+- Secure user signup and login with email and password.
+- Password hashing using `bcryptjs` with salt rounds.
+- JWT-based authorization protecting private sessions and message history.
 
-### Backend Stack
+### 3. Session & Chat History Management
+- **Multi-session Sidebar:** Users can manage multiple conversation threads.
+- **Auto-titling:** New chats are automatically named based on the first prompt.
+- **Rename & Delete:** Users can rename chat titles or delete entire session threads with transactional cascade deletion.
+- **Conversation Search:** Quick filtering of saved chats directly from the sidebar.
 
-- **Node.js** - JavaScript runtime
-- **Express.js** - Web framework
-- **MySQL** - Relational database
-- **Google Gemini API** - AI response generation
-- **CORS** - Cross-origin resource sharing
-- **dotenv** - Environment variable management
+### 4. Dual User Experience (Guest vs. Authenticated)
+- **Guest Mode:** First-time visitors can chat immediately without signing up. Context is temporarily stored in-memory during the session.
+- **Authenticated Mode:** Signing in automatically creates persistent sessions and associates history with the user's account.
 
-### Development Tools
-
-- **Git** - Version control
-- **GitHub** - Repository hosting
-- **Vercel** - Cloud deployment platform
-- **VS Code** - Code editor
-
----
-
-## ✨ Features
-
-### Frontend Features
-
-- ✅ Real-time chat interface
-- ✅ Message display with formatting
-- ✅ Chat sidebar for conversation management
-- ✅ Responsive design
-- ✅ Smooth user experience
-
-### Backend Features
-
-- ✅ RESTful API endpoints
-- ✅ AI-powered response generation
-- ✅ Conversation history management
-- ✅ Database persistence
-- ✅ Error handling and validation
+### 5. Resilient Database Initialization
+- Backend automatically checks and initializes `users`, `sessions`, and `conversations` tables on startup.
+- Enforces uniform `utf8mb4_unicode_ci` collations across all tables to avoid cross-table comparison mismatches.
+- Strict SSL certificate verification support for remote cloud databases.
 
 ---
 
-## 📁 Project Structure
+## Project Directory Structure
 
 ```
-ChatGPT_Clone_With_MVC/
-├── frontend/
-│   ├── src/
-│   │   ├── components/
-│   │   │   ├── ChatHeader/       # Header component
-│   │   │   ├── ChatInput/        # Message input component
-│   │   │   ├── ChatMessage/      # Message display component
-│   │   │   ├── MessageList/      # Message list container
-│   │   │   └── Sidebar/          # Sidebar navigation
-│   │   ├── api/
-│   │   │   └── chatApi.js        # API integration
-│   │   ├── App.jsx               # Main app component
-│   │   ├── main.jsx              # React entry point
-│   │   └── index.css             # Global styles
-│   ├── package.json
-│   ├── vite.config.js
-│   └── README.md
-│
+ChatGPT-Clone/
 ├── backend/
+│   ├── certs/
+│   │   └── ca.pem                  # Aiven / Remote MySQL SSL CA certificate
 │   ├── src/
 │   │   ├── config/
-│   │   │   └── database.js       # Database configuration
+│   │   │   ├── database.js          # MySQL connection pool & SSL configuration
+│   │   │   └── initializeDatabase.js# Auto-table creation & collation synchronization
 │   │   ├── controllers/
-│   │   │   └── chatController.js # Business logic
+│   │   │   ├── authController.js    # Registration, login, and user verification
+│   │   │   └── chatController.js    # Chat session & message orchestration
+│   │   ├── middleware/
+│   │   │   └── authMiddleware.js    # JWT token extraction & verification guard
 │   │   ├── models/
-│   │   │   └── conversationModel.js # Database queries
+│   │   │   ├── userModel.js         # User database queries
+│   │   │   ├── sessionModel.js      # Chat session queries & transactions
+│   │   │   └── conversationModel.js # Message history queries
 │   │   ├── routes/
-│   │   │   └── chatRoutes.js     # API routes
-│   │   ├── services/
-│   │   │   └── geminiService.js  # AI integration
-│   │   └── middleware/
-│   │       └── error-handler.js  # Error handling
-│   ├── index.js                  # Server entry point
-│   ├── package.json
-│   ├── vercel.json               # Deployment config
-│   └── .env                      # Environment variables
+│   │   │   ├── authRoutes.js        # /api/auth routes
+│   │   │   └── chatRoutes.js        # /api/chat routes
+│   │   └── services/
+│   │       └── geminiService.js     # Google Gemini API integration
+│   ├── index.js                     # Express server entry point
+│   ├── package.json                 # Backend dependencies & scripts
+│   └── .env.example                 # Environment template
 │
-└── README.md                     # This file
+└── frontend/
+    ├── src/
+    │   ├── api/
+    │   │   ├── apiClient.js         # Axios instance with interceptors
+    │   │   ├── authApi.js           # Auth endpoint requests
+    │   │   └── chatApi.js           # Chat endpoint requests
+    │   ├── components/
+    │   │   ├── AuthModal/           # Login & Registration modal
+    │   │   ├── ChatHeader/          # Header with user controls & model status
+    │   │   ├── ChatInput/           # Prompt textarea and send action
+    │   │   ├── ChatMessage/         # Individual message bubble component
+    │   │   ├── MessageList/         # Scrollable message stream container
+    │   │   └── Sidebar/             # Chat session history & search
+    │   ├── context/
+    │   │   └── AuthContext.jsx      # Global authentication provider
+    │   ├── App.jsx                  # Main application container
+    │   ├── main.jsx                 # React root mount
+    │   └── index.css                # Global design system & theme variables
+    ├── index.html                   # HTML template
+    ├── package.json                 # Frontend dependencies & scripts
+    └── vite.config.js               # Vite build configuration
 ```
 
 ---
 
-## 💻 Installation & Setup
+## Database Schema
 
-### Prerequisites
-
-- Node.js (v14 or higher)
-- npm or yarn
-- MySQL database
-- Google Gemini API key
-
-### Backend Setup
-
-1. **Navigate to backend directory**
-
-   ```bash
-   cd backend
-   ```
-
-2. **Install dependencies**
-
-   ```bash
-   npm install
-   ```
-
-3. **Configure environment variables**
-   Create a `.env` file in the backend directory:
-
-   ```
-   DB_HOST=your_database_host
-   DB_PORT=3306
-   DB_USER=your_database_user
-   DB_PASSWORD=your_database_password
-   DB_NAME=your_database_name
-   DB_SSL=true
-   GEMINI_API_KEY=your_gemini_api_key
-   JWT_SECRET=replace_with_a_long_unique_random_secret
-   PORT=5000
-   ```
-
-4. **Create the database**
-   ```bash
-   mysql -u root -p -e "CREATE DATABASE chatgpt_clone"
-   ```
-   On startup, the backend creates the `conversations` table if it is missing.
-   Existing tables are left intact; incompatible `conversations` schemas stop
-   startup with an error and must be corrected manually.
-
-### Frontend Setup
-
-1. **Navigate to frontend directory**
-
-   ```bash
-   cd frontend
-   ```
-
-2. **Install dependencies**
-
-   ```bash
-   npm install
-   ```
-
-3. **Configure API endpoint**
-   Set the backend URL in `frontend/.env`:
-   ```env
-   VITE_API_URL=http://localhost:5000
-   ```
-
----
-
-## 🚀 Running the Application
-
-### Development Mode
-
-**Backend:**
-
-```bash
-cd backend
-npm run dev
-```
-
-Backend will run on `http://localhost:5000`
-
-**Frontend:**
-
-```bash
-cd frontend
-npm run dev
-```
-
-Frontend will run on `http://localhost:5173`
-
-### Production Build
-
-**Backend:**
-
-```bash
-cd backend
-npm start
-```
-
-**Frontend:**
-
-```bash
-cd frontend
-npm run build
-npm run preview
-```
-
----
-
-## 📡 API Endpoints
-
-### Authentication Endpoints
-
-- **POST** `/api/auth/signup`
-  - Creates an account, hashes the password, and returns a seven-day JWT.
-
-- **POST** `/api/auth/login`
-  - Verifies an existing account and returns a JWT.
-
-- **GET** `/api/auth/me`
-  - Returns the current user. Requires `Authorization: Bearer <token>`.
-
-### Chat Endpoints
-
-- **GET** `/api/chat/`
-  - Check that the chat API is running.
-
-- **GET** `/api/chat/conversations`
-  - Returns messages from one owned chat. Requires `sessionId` and
-    `Authorization: Bearer <token>`.
-
-- **GET** `/api/chat/sessions`
-  - Returns only the current user's saved chats. Requires a JWT.
-
-- **GET** `/api/chat/sessions/:id`
-  - Returns one saved chat only when it belongs to the current user.
-
-- **PUT** `/api/chat/sessions/:id` and **DELETE** `/api/chat/sessions/:id`
-  - Rename or delete one owned chat. Both require a JWT.
-
-- **POST** `/api/chat/conversations`
-  - Sends a question to Gemini. With a valid JWT, it saves the question and
-    answer in a chat owned by that account. Without a JWT, it answers but does
-    not write a chat or message to the database.
-  - Request body:
-    ```json
-    {
-      "question": "Your question here",
-      "sessionId": "chat_optional_existing_id"
-    }
-    ```
-  - Response:
-    ```json
-    {
-      "userConversationId": 1,
-      "assistantConversationId": 2,
-      "answer": "...",
-      "sessionId": "chat_...",
-      "saved": true
-    }
-    ```
-
----
-
-## 🗄️ Database Schema
-
-### Users, Sessions, and Conversations
+The database uses three relational tables configured with `InnoDB` and `utf8mb4_unicode_ci`:
 
 ```sql
+-- 1. Users Table
+CREATE TABLE users (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  username VARCHAR(100) NOT NULL,
+  email VARCHAR(255) NOT NULL UNIQUE,
+  password VARCHAR(255) NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 2. Sessions Table (Chat Threads)
+CREATE TABLE sessions (
+  id VARCHAR(64) NOT NULL PRIMARY KEY,
+  user_id INT UNSIGNED NOT NULL,
+  title VARCHAR(255) NOT NULL DEFAULT 'New chat',
+  model VARCHAR(64) NOT NULL DEFAULT 'gemini-3.5-flash-lite',
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_user (user_id),
+  CONSTRAINT fk_sessions_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 3. Conversations Table (Messages)
 CREATE TABLE conversations (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
   session_id VARCHAR(64) NOT NULL,
   role ENUM('user', 'assistant') NOT NULL,
   content TEXT NOT NULL,
   token_count INT UNSIGNED NOT NULL DEFAULT 0,
-  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4;
-```
-
-Each saved session has a `user_id`, and every history query checks that ID
-against the authenticated JWT. Guest chats are intentionally not persisted.
-Existing database rows are preserved during startup.
-
----
-
-## 🔐 Environment Variables
-
-### Backend (.env)
-
-```
-DB_HOST=localhost
-DB_PORT=3306
-DB_USER=root
-DB_PASSWORD=your_password
-DB_NAME=chatgpt_clone
-DB_SSL=false
-GEMINI_API_KEY=your_gemini_api_key
-JWT_SECRET=replace_with_a_long_unique_random_secret
-PORT=5000
-NODE_ENV=development
-```
-
-### Render Backend Deployment
-
-Set the backend root directory to `backend`, use `npm install` as the build
-command, and `npm start` as the start command. Configure these environment
-variables in Render:
-
-```text
-DB_HOST=<Aiven MySQL host>
-DB_PORT=<Aiven MySQL port>
-DB_USER=<Aiven MySQL user>
-DB_PASSWORD=<Aiven MySQL password>
-DB_NAME=defaultdb
-DB_SSL=true
-DB_SSL_CA=<full PEM CA certificate contents from Aiven>
-GEMINI_API_KEY=<your Gemini API key>
-JWT_SECRET=<a long, unique random secret>
-```
-
-In Aiven, open your MySQL service's **Overview** (or connection information),
-find the **CA certificate** section, and copy the complete PEM certificate:
-include the `-----BEGIN CERTIFICATE-----` and `-----END CERTIFICATE-----`
-lines and all lines between them. To use a file locally, save it as
-`backend/certs/ca.pem`; this is the default location read for remote database
-connections. Alternatively, set `DB_SSL_CA_PATH` to the certificate file's
-path.
-
-To provide the certificate on Render, either include `backend/certs/ca.pem` in
-the deployed backend, paste the PEM contents into the Render environment
-variable `DB_SSL_CA`, or add it as a Render Secret File and set
-`DB_SSL_CA_PATH` to its mounted path. A path on your development computer is
-not available to Render.
-
-The backend verifies both the certificate chain and server hostname. It refuses
-remote connections if SSL is disabled or a valid CA certificate is missing;
-`rejectUnauthorized` is never disabled.
-
-Render supplies `PORT` automatically. The service listens only after the
-database connection and table initialization succeed.
-
-### Frontend (.env)
-
-Create `frontend/.env` from the example file:
-
-```powershell
-Copy-Item frontend/.env.example frontend/.env
-```
-
-Set `VITE_API_URL` to the backend API URL, then restart the frontend dev server
-after changing it. The URL should include `/api`.
-
-```
-VITE_API_URL=http://localhost:5000/api
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_session (session_id),
+  CONSTRAINT fk_conversations_session FOREIGN KEY (session_id) REFERENCES sessions (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
 ---
 
-## 🌐 Deployment
+## API Endpoints
 
-### Backend Deployment (Vercel)
+### Authentication (`/api/auth`)
 
-1. Push code to GitHub
-2. Connect repository to Vercel
-3. Set environment variables in Vercel dashboard
-4. Deploy
+| Method | Endpoint | Access | Description |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/api/auth/signup` | Public | Register a new user (`username`, `email`, `password`) and receive JWT |
+| `POST` | `/api/auth/login` | Public | Authenticate user credentials and return a signed JWT token |
+| `GET` | `/api/auth/me` | Protected | Fetch authenticated user profile data |
 
-### Frontend Deployment (Vercel)
+### Chat & Sessions (`/api/chat`)
 
-1. Push code to GitHub
-2. Connect repository to Vercel
-3. Configure build command: `npm run build`
-4. Set output directory: `dist`
-5. Deploy
-
----
-
-## 📚 Learning Outcomes
-
-By completing this project, you will understand:
-
-- ✅ **Full-stack architecture** - How frontend and backend communicate
-- ✅ **MVC pattern** - Separation of concerns in backend development
-- ✅ **REST APIs** - Designing and consuming APIs
-- ✅ **React** - Component-based UI development
-- ✅ **Node.js/Express** - Building scalable servers
-- ✅ **MySQL** - Database design and queries
-- ✅ **External API integration** - Working with third-party APIs
-- ✅ **Git & GitHub** - Version control and collaboration
-- ✅ **Deployment** - Hosting applications on cloud platforms
+| Method | Endpoint | Access | Description |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/api/chat/conversations` | Public / Protected | Send a prompt to Gemini; persists to database if authenticated |
+| `GET` | `/api/chat/sessions` | Protected | Fetch all saved chat sessions for the authenticated user |
+| `GET` | `/api/chat/sessions/:id` | Protected | Retrieve message history for a specific chat session |
+| `POST` | `/api/chat/sessions` | Protected | Manually create a new conversation session |
+| `PUT` | `/api/chat/sessions/:id` | Protected | Rename a chat session title |
+| `DELETE` | `/api/chat/sessions/:id` | Protected | Delete a session and all its associated messages |
 
 ---
 
-## 📝 License
+## Environment Variables
 
-This project is created as a learning exercise.
+### Backend Configuration (`backend/.env`)
+
+| Variable | Required | Description | Example |
+| :--- | :---: | :--- | :--- |
+| `PORT` | No | Port on which Express runs (defaults to 5000 or Render port) | `5000` |
+| `NODE_ENV` | No | Runtime environment (`development` or `production`) | `production` |
+| `DB_HOST` | Yes | MySQL database hostname | `localhost` or Aiven host |
+| `DB_PORT` | Yes | MySQL database port | `3306` |
+| `DB_USER` | Yes | MySQL user | `root` or `avnadmin` |
+| `DB_PASSWORD` | Yes | MySQL password | `your_secure_password` |
+| `DB_NAME` | Yes | Database name | `chatgpt_clone` |
+| `DB_SSL` | No | Enable SSL for remote MySQL connections | `true` |
+| `DB_SSL_CA` | No | Raw PEM CA certificate string (recommended for Render) | `-----BEGIN CERTIFICATE-----...` |
+| `DB_SSL_CA_PATH` | No | Path to CA PEM file | `certs/ca.pem` |
+| `JWT_SECRET` | Yes | Secret key used to sign and verify JWT tokens | `64-character hex string` |
+| `GEMINI_API_KEY` | Yes | Google Gemini API key from Google AI Studio | `AIzaSy...` |
+
+### Frontend Configuration (`frontend/.env`)
+
+| Variable | Required | Description | Example |
+| :--- | :---: | :--- | :--- |
+| `VITE_API_URL` | Yes | URL pointing to the running backend API | `http://localhost:5000/api` |
 
 ---
 
-## 📧 Support
+## Installation & Local Setup
 
-For issues or questions, please open an issue on GitHub or contact the project maintainer.
+### Prerequisites
+- [Node.js](https://nodejs.org/) (v18.0.0 or higher)
+- [MySQL](https://www.mysql.com/) server (running locally or via Docker/cloud)
+- Google Gemini API Key ([Get one from Google AI Studio](https://aistudio.google.com/))
+
+### 1. Clone the Repository
+```bash
+git clone https://github.com/DawitMahabaw/ChatGPT-Clone.git
+cd ChatGPT-Clone
+```
+
+### 2. Backend Setup
+```bash
+# Navigate to backend directory
+cd backend
+
+# Install dependencies
+npm install
+
+# Create environment configuration
+cp .env.example .env
+# Edit .env with your MySQL credentials, GEMINI_API_KEY, and JWT_SECRET
+
+# Start development server
+npm run dev
+```
+The backend will run on `http://localhost:5000` and automatically create/synchronize database tables.
+
+### 3. Frontend Setup
+```bash
+# Open a new terminal and navigate to frontend
+cd frontend
+
+# Install dependencies
+npm install
+
+# Create frontend environment configuration
+cp .env.example .env
+# Ensure VITE_API_URL=http://localhost:5000/api
+
+# Start Vite dev server
+npm run dev
+```
+The frontend application will be accessible at `http://localhost:5173`.
 
 ---
 
-**Happy Coding! 🚀**
+## Deployment
+
+### Backend (Render)
+1. Create a new **Web Service** on [Render](https://render.com) and link your GitHub repository.
+2. Configure settings:
+   - **Root Directory:** `backend`
+   - **Build Command:** `npm install`
+   - **Start Command:** `npm start`
+3. Add Environment Variables in the Render dashboard:
+   - `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`
+   - `DB_SSL=true`
+   - `DB_SSL_CA` *(Paste the full CA certificate PEM string from your database provider, e.g., Aiven)*
+   - `JWT_SECRET` *(Generated random 64-byte hex string)*
+   - `GEMINI_API_KEY` *(Google Gemini key)*
+4. Deploy the service.
+
+### Frontend (Vercel)
+1. Import the repository into [Vercel](https://vercel.com).
+2. Configure settings:
+   - **Root Directory:** `frontend`
+   - **Framework Preset:** Vite
+   - **Build Command:** `npm run build`
+   - **Output Directory:** `dist`
+3. Add Environment Variable:
+   - `VITE_API_URL`: Your live Render backend URL ending in `/api` (e.g. `https://chatgpt-clone-71v0.onrender.com/api`).
+4. Deploy.
+
+---
+
+## Evaluation & Learning Outcomes
+
+This project demonstrates core competencies taught in the **Evangadi AI-Powered Fullstack Development** curriculum:
+
+- **Full-Stack Integration:** Seamless communication between a React Single Page Application (SPA) and an Express REST API.
+- **AI Agent & LLM Orchestration:** Implementing Gemini model calls, history extraction, and context window formatting.
+- **Relational Data Modeling:** Designing clean schema relationships across users, chat threads, and individual messages.
+- **Authentication & Security:** Managing JWT lifecycles, hashing credentials with salt rounds, guarding protected endpoints, and enforcing strict SSL database encryption.
+- **Error Handling & Resilience:** Robust exception handling, user-friendly frontend alerts, and automated database collation synchronization.
+
+---
+
+## Author & Acknowledgments
+
+- **Developer:** Dawit Mahabaw
+- **Program:** AI-Powered Fullstack Application Development — Evangadi Networks
+- **Instructional Team:** Evangadi Faculty & Mentors
